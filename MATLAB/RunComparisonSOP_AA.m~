@@ -1,0 +1,524 @@
+% This function runs Gauss-Newton / Levenberg - Marquardt comparison test 
+% on Whaba's problem (i.e., LS fit of transformed orientation vectors )
+function [avgStepsAA, avgStepsSOP, avgStepsQuat, avgStepsLie] = RunComparisonSOP_AA(Centroid, spread, sigma, N, randomStart, showPlots)
+    
+    % Centroid: The centroid of the points
+    % Spread: The spread of the points in space
+    % sigma: Noise levels
+    % N: Number of points (directions)
+    if nargin < 6
+        showPlots = false;
+    end
+        
+
+    % obtaining a random rotation for angles ax, ay, az in 0-90 degrees
+    ax = rand() * 3*pi/4;
+    ay = rand() * 3*pi/4;
+    az = rand() * 3*pi/4;    
+        
+    Rx = [1 0 0; 0 cos(ax) sin(ax); 0 -sin(ax) cos(ax)];
+    Ry = [cos(ay) 0 -sin(ax); 0 1 0; sin(ay) 0 cos(ay)];
+    Rz = [cos(az) -sin(az) 0; sin(az) cos(az) 0; 0 0 1];
+
+    R = Rx*Ry*Rz;
+    
+    M1 = mvnrnd(Centroid, spread*eye(3), N)';
+    M2 = R * M1;
+
+    % adding noise
+    M2n = M2 + mvnrnd([0, 0, 0], sigma*eye(3), N)';
+        
+    avgStepsAA = 0;
+    avgStepsSOP = 0;
+    avgStepsQuat = 0;
+    avgStepsLie = 0;
+    
+    maxIteration = 100;
+    
+    avgErrorAA = zeros(1, maxIteration);
+    avgErrorSOP = zeros(1, maxIteration);
+    avgErrorQuat = zeros(1, maxIteration);
+    avgErrorLie = zeros(1, maxIteration);
+    avgSOPParams = zeros(1, maxIteration);
+    
+
+    % Running optimization T times
+    T = 40;
+    
+    stepsAA = zeros(T, 1);
+    stepsSOP = zeros(T, 1);
+    stepsQuat = zeros(T, 1);
+    stepsLie = zeros(T, 1);
+    
+    errorsAA = zeros(T, maxIteration);
+    errorsSOP = zeros(T, maxIteration);
+    errorsQuat = zeros(T, maxIteration);
+    errorsLie = zeros(T, maxIteration);
+    
+    for c = 1:T
+             
+        % L-M
+        if (randomStart) 
+            % ok, obtaining a random rotation matrix using x-y-z rotations in [0, pi]
+            psi0 = [rand(); rand(); rand()];
+            q0 = MRPs2Quaternion(psi0);
+            R0 = Quaternion2Rotation(q0);
+            U0x = RotationLog(R0);
+            u0 = [-U0x(2, 3); U0x(1, 3); -U0x(1, 2)];
+    
+        else
+            anglex = 3*pi/4;
+            angley = 3*pi/4;
+            anglez = 3*pi/4;            
+        
+            Rx = [1 0 0; 0 cos(anglex) sin(anglex); 0 -sin(anglex) cos(anglex)];
+            Ry = [cos(angley) 0 -sin(anglex); 0 1 0; sin(angley) 0 cos(angley)];
+            Rz = [cos(anglez) -sin(anglez) 0; sin(anglez) cos(anglez) 0; 0 0 1];
+        
+            R0 = Rx * Ry * Rz;
+        
+            q0 = Rotation2Quaternion(R0);
+            psi0 = Quaternion2MRPs(q0);
+        end
+        
+        
+        
+        tolerance = 10E-5;
+        [NormSOP, NormSOPParams, numIterationsSOP, psin, R_sop, tpsi] = runGaussNewtonSOP(M1, M2n, psi0, tolerance, maxIteration);
+        [NormAA, numIterationsAA, un, R_un, tu] = runGaussNewtonAA(M1, M2n, u0, tolerance, maxIteration);
+        [NormQuat, numIterationsQuat, qn, R_qn, tq] = runGaussNewtonQuat(M1, M2n, q0, tolerance, maxIteration);
+        [NormLie, numIterationsLie, R_lie, tl] = runGaussNewtonLie(M1, M2n, u0, tolerance, maxIteration);
+        
+        % updating errors and steps
+        stepsAA(c) = numIterationsAA; 
+        stepsSOP(c) = numIterationsSOP;
+        stepsQuat(c) = numIterationsQuat;
+        stepsLie(c) = numIterationsLie;
+        
+        errorsAA(c, 1:length(NormAA)) = NormAA'; 
+        errorsSOP(c, 1:length(NormSOP)) = NormSOP';
+        errorsQuat(c, 1:length(NormQuat)) = NormQuat';
+        errorsLie(c, 1:length(NormLie)) = NormLie';
+        
+        % updating stats
+%         avgErrorAA = avgErrorAA + [NormAA', zeros(1, maxIteration-length(NormAA))];
+%         avgErrorSOP = avgErrorSOP + [NormSOP', zeros(1, maxIteration-length(NormSOP))];
+%         avgErrorQuat = avgErrorQuat + [NormQuat', zeros(1, maxIteration-length(NormQuat))];
+%         avgErrorLie = avgErrorLie + [NormLie', zeros(1, maxIteration-length(NormLie))];
+%         
+%         avgSOPParams = avgSOPParams + [NormSOPParams', zeros(1, maxIteration-length(NormSOPParams))];
+%         
+        %avgTimeAA = avgTimeAA + tu;
+        %avgTimeSOP = avgTimeSOP + tpsi;
+        %avgTimeQuat = avgTimeQuat + tq;
+        %avgTimeLie = avgTimeLie + tl;
+        
+%         
+%         avgStepsAA = avgStepsAA + numIterationsAA;
+%         avgStepsSOP = avgStepsSOP + numIterationsSOP;
+%         avgStepsQuat = avgStepsQuat + numIterationsQuat;
+%         avgStepsLie = avgStepsLie + numIterationsLie;
+        
+    end    
+    
+    %avgErrorAA = avgErrorAA / T;
+    %avgErrorSOP = avgErrorSOP / T;
+    %avgErrorQuat = avgErrorQuat / T;
+    %avgErrorLie = avgErrorLie / T;
+    
+    
+    %avgStepsAA = avgStepsAA / T;
+    %avgStepsSOP = avgStepsSOP / T;
+    %avgStepsQuat = avgStepsQuat / T;
+    %avgStepsLie = avgStepsLie / T;
+    
+    % substituting the means with medians to avoid the pitfall of
+    % non-converged runs
+    
+    avgErrorAA = median(errorsAA);
+    avgErrorSOP = median(errorsSOP);
+    avgErrorQuat = median(errorsQuat);
+    avgErrorLie = median(errorsLie);
+    
+    avgStepsAA = median(stepsAA);
+    avgStepsSOP = median(stepsSOP);
+    avgStepsQuat = median(stepsQuat);
+    avgStepsLie = median(stepsLie);
+    
+    if (showPlots)
+        % generating plots
+        % 1. Plotting error through time
+        fig1 = figure;
+        %plot(log(avgErrorAA+10E-30), 'LineWidth', 1.5);
+        plot(avgErrorAA, 'LineWidth', 1.5);
+        hold on;
+        %plot(log(avgErrorSOP+10E-30), 'LineWidth', 1.5);
+        plot(avgErrorSOP, 'LineWidth', 1.5, 'Color', 'red');
+        %plot(log(avgErrorQuat+10E-30), 'LineWidth', 1.5);
+        plot(avgErrorQuat, 'LineWidth', 1.5);
+        %plot(log(avgErrorLie+10E-30), 'LineWidth', 1.5);
+        plot(avgErrorLie, 'LineWidth', 1.5);
+    
+        legend('Axis-Angle', 'Stereographic Parameters', 'Normalized Quaternion', 'Incremental rotation');
+        xlabel('Iteration');
+        ylabel('Squared Error');
+        fig1.Color = 'white';
+    
+        %whitebg('white');
+        hold off;
+    
+        fig2 = figure;
+        fig2.Color = 'white';
+        plot(avgSOPParams, 'LineWidth', 1.5);
+        xlabel('Iteration');
+        ylabel('Norm of Stereographic Coordinates');
+    end
+end
+
+
+function [NormSOP, NormSOPParams, numIterations, psin, Rn, tpsi] = runGaussNewtonSOP(M1, M2, startPsi, tolerance, maxIteration)
+    N = size(M1, 2);
+ 
+    tol = tolerance;
+    lambda = 0.0001; % run the LM Gauss-Newton
+    
+    step = 0;
+    
+    psin = startPsi;
+    qn = MRPs2Quaternion(psin);
+    Rn = Quaternion2Rotation(qn);
+    error = norm(Rn*M1 - M2);
+    prevError = error;
+    minError = error;
+    NormSOP = [error];
+    NormSOPParams = [norm(psin)];
+    
+    I3 = eye(3);
+    DtD  = I3;
+    
+    stop = error < tol;
+    tic;
+    while (stop == false)
+        % finding the information matrix
+        Omega = zeros(3,3);
+        Q = zeros(3,1); % The sum of transposed Jacobians 
+        for i = 1:N
+            m1 = M1(:,i);
+            m2 = M2(:,i);
+            Dqn = QuaternionJacWRTMRPs(qn);
+            Rx = RotationJacWRTQuatScalar(qn) * Dqn(1, 1) + ...
+                 RotationJacWRTQuatVector1(qn) * Dqn(2, 1) + ...
+                 RotationJacWRTQuatVector2(qn) * Dqn(3, 1) + ...
+                 RotationJacWRTQuatVector3(qn) * Dqn(4, 1);
+            Ry = RotationJacWRTQuatScalar(qn) * Dqn(1, 2) + ...
+                 RotationJacWRTQuatVector1(qn) * Dqn(2, 2) + ...
+                 RotationJacWRTQuatVector2(qn) * Dqn(3, 2) + ...
+                 RotationJacWRTQuatVector3(qn) * Dqn(4, 2);
+            Rz = RotationJacWRTQuatScalar(qn) * Dqn(1, 3) + ...
+                 RotationJacWRTQuatVector1(qn) * Dqn(2, 3) + ...
+                 RotationJacWRTQuatVector2(qn) * Dqn(3, 3) + ...
+                 RotationJacWRTQuatVector3(qn) * Dqn(4, 3);
+            
+            % the Jacobian
+            J = [Rx * m1, Ry * m1, Rz * m1];
+            % The Gramm matrix
+            JtJ = J' * J;
+            Q = J'*(m2 - Rn*m1) + Q;
+            Omega = Omega + JtJ;
+        end
+        % Done. Now obtaining a new estimate
+        psitemp = psin + pinv(Omega + lambda * DtD) * Q;
+        qtemp = MRPs2Quaternion(psitemp);
+        Rtemp = Quaternion2Rotation(qtemp);
+        
+        
+        % evaluating the error using the estimated state vector in the new state vector "mutemp"
+        error = norm(Rtemp * M1 - M2);
+       
+        
+        if (error < minError) 
+            psin = psitemp;
+            qn = qtemp;
+            Rn = Rtemp;
+            
+            lambda = lambda / 10;
+            minError = error;
+        else % keeping  previous parameters and increasing lambda
+            lambda = lambda * 10;
+        end
+        NormSOP = [NormSOP; minError];
+         
+        NormSOPParams = [NormSOPParams; norm(psin)];
+        
+        if (error < tol) || (step ==  maxIteration-1) || (abs(error - prevError) < 10E-12)
+            stop = true;
+        end
+        prevError = error;
+        step = step + 1;
+        
+    end
+    
+    tpsi = toc;
+    numIterations = step;
+    if (maxIteration < length(NormSOP))
+        NormSOP = NormSOP(1:maxIteration);
+    end
+end
+
+
+function [NormAA, numIterations, un, Rn, tu] = runGaussNewtonAA(M1, M2, startu, tolerance, maxIteration)
+    
+    N = size(M2, 2);
+    tol = tolerance;
+    lambda = 0.0001; % run the LM Gauss-Newton
+    
+    step = 0;
+    % starting point
+
+    un = startu;
+    Rn = RotationExp(un);
+    error = norm(Rn*M1 - M2);
+    prevError = error;
+    minError = error;
+    
+    NormAA = [error];
+    
+    
+   
+    DtD  = eye(3);
+    
+    tic;
+    stop = error < tol;
+    while (stop == false)
+        % finding the information matrix
+        Omega = zeros(3,3);
+        Q = zeros(3,1); % The sum of transposed Jacobians x errors
+        for i = 1:N
+            m1 = M1(:,i);
+            m2 = M2(:, i);
+            Rx = RotationJacWRTaxisangle(un, 1);
+            Ry = RotationJacWRTaxisangle(un ,2);
+            Rz = RotationJacWRTaxisangle(un, 3);
+            
+            % the Jacobian
+            J = [Rx * m1, Ry * m1, Rz * m1];
+            
+            % The Gramm matrix
+            JtJ = J' * J;
+            Q = Q + J'*(m2 - Rn*m1);
+            Omega = Omega + JtJ;
+        end
+        
+        % Done. Now obtaining a new estimate
+        utemp = un + pinv(Omega + lambda * DtD) * Q ;
+        Rtemp = RotationExp(utemp);
+        
+        
+        % evaluating the error using the estimated state vector in the new state vector "mutemp"
+        error = norm(Rtemp * M1 - M2);
+        
+        
+        if (error < minError) 
+            un = utemp;
+            Rn = Rtemp;
+            
+            lambda = lambda / 10;
+            minError = error;
+        else% keeping  previous parameters and increasing lambda
+            lambda = lambda * 10;
+        end
+        
+        NormAA = [NormAA; minError];
+        
+        if (error < tol) || (step ==  maxIteration-1) || (abs(error - prevError) < 10E-12)
+            stop = true;
+        end
+        prevError = error;
+        step = step + 1;
+    end
+    tu = toc;
+    numIterations = step;
+    if (maxIteration < length(NormAA))
+        NormAA = NormAA(1:maxIteration);
+    end
+end
+
+
+% Run the Gauss-Newton optimization using a normalized quaternion
+function [NormQuat, numIterations, qn, Rn, tq] = runGaussNewtonQuat(M1, M2, startq, tolerance, maxIteration, execLM)
+    
+ 
+    N = size(M2, 2);
+    tol = tolerance;
+    lambda = 0.0001; % run the LM Gauss-Newton
+    
+    step = 0;
+    % starting point
+
+    %a = [a0; a1; a2; a3]; % The unknowns
+    a = startq; % now a is unit-norm
+    qn = a / norm(a);
+    Rn = Quaternion2Rotation(qn);
+    error = norm(Rn*M1 - M2);
+    prevError = error;
+    minError = error;
+    
+    NormQuat = [error];
+    
+
+    DtD  = eye(4);
+    
+    tic;
+    stop = error < tol;
+    while (stop == false)
+        % finding the information matrix
+        Omega = zeros(4,4);
+        Q = zeros(4,1); % The sum of transposed Jacobians x errors
+        for i = 1:N
+            m1 = M1(:,i);
+            m2 = M2(:, i);
+            
+            % The derivative of the normalized quaternion
+            DqnDa = (eye(4) - a*a' / norm(a)^2) / norm(a); 
+            
+            DRDq0 = RotationJacWRTQuatScalar(qn);
+           
+            DRDq1 = RotationJacWRTQuatVector1(qn);
+            
+            DRDq2 = RotationJacWRTQuatVector2(qn);
+            
+            DRDq3 = RotationJacWRTQuatVector3(qn);
+            
+            DRDa0 =  DRDq0 * DqnDa(1,1) + DRDq1 * DqnDa(2,1) + DRDq2 * DqnDa(3,1) + DRDq3 * DqnDa(4,1);
+            DRDa1 =  DRDq0 * DqnDa(1,2) + DRDq1 * DqnDa(2,2) + DRDq2 * DqnDa(3,2) + DRDq3 * DqnDa(4,2);
+            DRDa2 =  DRDq0 * DqnDa(1,3) + DRDq1 * DqnDa(2,3) + DRDq2 * DqnDa(3,3) + DRDq3 * DqnDa(4,3);
+            DRDa3 =  DRDq0 * DqnDa(1,4) + DRDq1 * DqnDa(2,4) + DRDq2 * DqnDa(3,4) + DRDq3 * DqnDa(4,4);
+            
+            
+            % the Jacobian
+            J = [DRDa0 * m1, DRDa1 * m1, DRDa2 * m1, DRDa3 * m1];
+            
+            % The Gramm matrix
+            JtJ = J' * J;
+            scale = max(abs(JtJ(:)));
+            Q = Q + J'*(m2 - Rn*m1) / scale;
+            Omega = Omega + JtJ / scale;
+        end
+        
+        % Done. Now obtaining a new estimate
+        atemp = a + pinv(Omega + lambda * eye(4)) * Q;
+        qtemp = atemp / norm(atemp);
+        Rtemp = Quaternion2Rotation(qtemp);
+        
+        
+        % evaluating the error using the estimated state vector in the new state vector "mutemp"
+        error = norm(Rtemp * M1 - M2);
+        
+
+        if (error < minError) 
+            a = atemp;
+            qn = qtemp;
+            Rn = Rtemp;
+            
+            lambda = lambda / 10;
+            minError = error;
+        else % keeping  previous parameters and increasing lambda
+            lambda = lambda * 10;
+        end
+        NormQuat = [NormQuat; minError];
+        
+        
+        if (error < tol) || (step ==  maxIteration-1) || (abs(error - prevError) < 10E-12)
+            stop = true;
+        end
+        prevError = error;
+        step = step + 1;
+    end
+    tq = toc;
+    numIterations = step;
+    
+end
+
+% Run the Gauss-Newton optimization using a perturbing rotation in each
+% step (see Drummond and Eade, PTAM, TooN, etc.)
+function [NormLie, numIterations, Rn, tu] = runGaussNewtonLie(M1, M2, startu, tolerance, maxIteration)
+    
+    N = size(M2, 2);
+    tol = tolerance;
+    lambda = 0.0001; % run the LM Gauss-Newton
+    
+    step = 0;
+    % starting point
+
+    % using the startu just to create a new matrix
+    Rn = RotationExp(startu);
+    error = norm(Rn*M1 - M2);
+    prevError = error;
+    minError = error;
+    
+    % list of errors actually
+    NormLie = [error];
+    
+    % caching the rotation generators at the origin (i.e. canonical vector
+    % skew - symmetric matrices)
+    G1 = [0 0 0; 0 0 -1; 0 1 0];
+    G2 = [0 0 1; 0 0 0; -1 0 0];
+    G3 = [0 -1 0; 1 0 0; 0 0 0];
+   
+    DtD  = eye(3);
+    
+    tic;
+    stop = error < tol;
+    while (stop == false)
+        % finding the information matrix
+        Omega = zeros(3,3);
+        Q = zeros(3,1); % The sum of transposed Jacobians x errors
+        for i = 1:N
+            m1 = M1(:,i);
+            m2 = M2(:, i);
+            % Now using the Drummond, Rosten, Eade approach
+            % in which, the Jacobian of the expression is
+            % simply the generator multiplied by the expression 
+            
+            % the Jacobian
+            J = [G1 * Rn * m1, G2 * Rn * m1, G3 * Rn * m1];
+            
+            % The Gramm matrix
+            JtJ = J' * J;
+            Q = Q + J'*(m2 - Rn*m1);
+            Omega = Omega + JtJ;
+        end
+        
+        % Done. Now obtaining a new estimate
+        % Recall that we assume the previous value 
+        % of omega was zero.
+        omega_temp = pinv(Omega + lambda * DtD) * Q;
+        Rtemp = RotationExp(omega_temp) * Rn;
+        
+        
+        % evaluating the error using the estimated state vector in the new state vector "mutemp"
+        error = norm(Rtemp * M1 - M2);
+        
+        
+        if (error < minError) 
+            Rn = Rtemp;
+            
+            lambda = lambda / 10;
+            minError = error;
+        else% keeping  previous parameters and increasing lambda
+            lambda = lambda * 10;
+        end
+        NormLie = [NormLie; minError];
+        
+        if (error < tol) || (step ==  maxIteration-1) || (abs(error - prevError) < 10E-12)
+            stop = true;
+        end
+        prevError = error;
+        step = step + 1;
+    end
+    tu = toc;
+    numIterations = step;
+    if (maxIteration < length(NormLie))
+        NormLie = NormAA(1:maxIteration);
+    end
+end

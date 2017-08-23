@@ -13,3 +13,7 @@ For intuition behind the implementation, see _"Modified Rodrigues Parameters: An
 ## Examples
 
 There are two examples: The first one (_Example1_) contains simple examples of nearly all methods included in the class, so it is a good place to start for one who wants to get to know the class. The second example (_Example2-LM_) is the implementation of an iterative solution of the classic _rotation averaging_ problem in which an unknown rotation matrix `X` is estimated from multiple "noisy" rotation matrices that where somehow sampled from the same orientation. The **Levenberg-Marquardt** is employed using **MRPs**( for differentiation of the cost function, while **OpenCV** is used to provide the necessary linear algebra operations (addition, multiplication and inversion). Thus, the second example illustrates how to use the `Quaternion` class with OpenCV objects and furthermore, it provides an example on the implicit use of MRPs in an iterative method.  
+
+## MATLAB
+
+Almost all the methods included in the `Quaternion` class have a corresponding Matlab script in directory _MATLAB_. Most implementations are identical if not similar, espcially where _MRPs_ are involved. They can be used to confirm the results obtained with C++. The code is fairly intuitive owing to the vectorization with MATLAB arrays. 

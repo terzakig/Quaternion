@@ -54,7 +54,7 @@ int main()
   // Quaternion<double> q2(g, QUATERNION_MRPs); // parameter is an MRP vector
   
 
-  // Create  third quaternion as the difference of the first two
+  // Create a third quaternion as the difference of the first two
   Quaternion<> q3 = q2 - q1;
   //Quaternion<> q3 = q1 + q2; // addition respectively
   
@@ -65,44 +65,46 @@ int main()
   q3.unit();
   
   // Obtain the rotation matrices R1, R2, R3 in 9 - arrays
+  // NOTE: Once teh RotationMatrix() method is invoked, the quaternion is normalized.
   double R1[9], R2[9], R3[9];
   q1.RotationMatrix(R1);
   q2.RotationMatrix(R2);
   q3.RotationMatrix(R3);
   
-  // Finally, create a fourth quaternion from the rotation matrix of the third
+  // Finally, create a fourth single precision quaternion from the rotation matrix of the third
   Quaternion<> q4(R3);
   
   
-  // print out the quaternions
+  // Print-out the quaternions
   cout<<"Quaternion #1 : "<<q1<<endl;
   cout<<"Quaternion #2 : "<<q2<<endl;
   cout<<"Quaternion #3 : "<<q3<<endl;
   cout<<"Quaternion #4 : "<<q4<<endl;
   
-  // Now obtain the dot-produce of q3 and a4 as Euclidean vectors (should be 1)
+  // Now obtain the dot-product of q3 and a4 as Euclidean vectors (should be 1 or -1 in this case)
   cout<<"Dot product of q3 and q4 : "<<q3.Dot(q4)<<endl;
   
-  // obtain the Quaternion product of q2 and q4:
+  // Obtain the Quaternion product of q2 and q4:
   Quaternion<double> q5 = q2.Mul(q3);
   
   cout <<"Quaternion #5 (product of #2 and #3): "<<q5<<endl;
 
   
-  // Scalar multiplication
+  // Scalar multiplication (multiply the quaternion components by a number)
   cout<<"Quaternion #5 multiplied by 10 : "<<q5.Muls(10)<<endl;
+  cout<<"Quaternion #5 multiplied by π : "<<q5.Muls(M_PI)<<endl;
   
-  // Derivatives QRT quaternion components
-  double dr12dscalar = q1.RotationJacWRTquat(0, 1, 0);
-  cout <<"Derivative of r12 WRT quaternion scalar : "<<dr12dscalar<<endl;
   
-  // Get the derivative of the rotation matrix in terms of the scalar part:
+  // Derivative of Rotation Matrix Element  r23 indexed by (1, 2) WRT quaternion scalar part (indexed by 0)
+  cout <<"Derivative of element (2,3) of R(q1) WRT quaternion scalar q1.s : "<<q1.RotationJacWRTquat(1, 2, 0)<<endl;
+  
+  // Derivative of Rotation matrix in terms of the scalar part:
   float dRds[9]; // 9 = 3x3
   q1.RotationJacWRTscalar(dRds);
-  cout <<"The derivative of the R1 in terms of q1.s : "<<endl;
+  cout <<"The derivative of R(q1) in terms of q1.s : "<<endl;
   PrintMatrix(dRds, 3, 3);
   
-  // Get the derivative(s) R1 in terms of the vector part
+  // Derivative(s) of R(q1) in terms of the quaternion vector part
   double dRdv1[9], dRdv2[9], dRdv3[9];
   q1.RotationJacWRTvector(0, dRdv1);
   q1.RotationJacWRTvector(1, dRdv2);
@@ -124,33 +126,32 @@ int main()
   q1.RotationJacWRTMRPs(1, dRdpsi2);
   q1.RotationJacWRTMRPs(2, dRdpsi3);
   
-  cout <<"The derivative of R1 in terms of MRP #1  : "<<endl;
+  cout <<"The derivative of R(q1) in terms of MRP #1  : "<<endl;
   PrintMatrix(dRdpsi1, 3, 3);
   
-  cout <<"The derivative of R1 in terms of MRP #2  : "<<endl;
+  cout <<"The derivative of R(q1) in terms of MRP #2  : "<<endl;
   PrintMatrix(dRdpsi2, 3, 3);
   
-  cout <<"The derivative of R1 in terms of MRP #3  : "<<endl;
+  cout <<"The derivative of R(q1) in terms of MRP #3  : "<<endl;
   PrintMatrix(dRdpsi3, 3, 3);
   
-  // Get the Jacobian of R1*v hwere v is a 3D vector in an array 
+  // Get the Jacobian of R(q1)*v where v is a 3D vector in an array 
   float v[3] = {1, 2, 3};
   double rot_v[3];
   q1.RotatedVectorJacWRTMRPs(v, rot_v);
-  
-  cout <<"The rotated vector (by R1) derivative: "<<endl;
+  cout <<"The Jacobian of the rotated vector R(q1)*v in terms of MRPs: "<<endl;
   PrintMatrix(rot_v, 3, 3);
   
-  // Get the Jacobian of R1'*v hwere v is a 3D vector in an array 
+  // Get the Jacobian of R(q1)'*v hwere v is a 3D vector in an array 
   double rot_trans_v[3];
   q1.RotatedTranspVectorJacWRTMRPs(v, rot_trans_v);
   
-  cout <<"The rotated vector (by R1') derivative: "<<endl;
+  cout <<"The Jacobian of R(q1)'*v in terms of MRPs: "<<endl;
   PrintMatrix(rot_trans_v, 3, 3);
   
   
   
-  // Finally, trying SLERP (midpoint in this case-easily verified)
+  // Spherical Elementary Interpolation: SLERP (t = 0 .5 for midpoint in this case-easily verified) between q1 and q3
   auto q = Quaternion<>::SLERP(q1, q3, 0.5);
   
   cout <<"The SLERP-ed quaternion at 1/2 between q1 = "<<q1<<" and q3 = "<<q3<<" is : " <<q<<endl;
@@ -172,12 +173,13 @@ int main()
   // The Jacobian of the Quaternion scalar WRT Axis-Angle Parameters
   double Js[3];
   q1.QuaternionScalarJacWRTAA(Js);
-  cout << "The Quaternion scalar Jacobian in terms of axis-angle parameters : "<<endl;
+  cout << "The Jacobian of the quaternion scalar q1.s in terms of axis-angle parameters : "<<endl;
   PrintMatrix(Js, 1, 3);
   
+  // And the Jacobian of the Quaternion vector part in terms of Axis-Angle parameters
   double Jv[9];
   q1.QuaternionVectorJacWRTAA(Jv);
-  cout << "The Quaternion vector Jacobian in terms of axis-angle parameters : "<<endl;
+  cout << "The Jacobian of the quaternion vector part q1.v in terms of axis-angle parameters : "<<endl;
   PrintMatrix(Jv, 3, 3);
   
   

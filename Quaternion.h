@@ -534,6 +534,10 @@ template<typename P = float>
       }
       
       /// Rotation matrix derivative wrt quaternion components as tensor elements
+      /// 0 : s
+      /// 1 : v1
+      /// 2 : v2
+      /// 3 : v3
       P RotationJacWRTquat(int row, int col, int i) 
       {
 	

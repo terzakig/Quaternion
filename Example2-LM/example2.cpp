@@ -82,7 +82,7 @@ int main()
   qt.RotationMatrix(Rt.val);
   
   int N = 100;
-  // Now creating 50 "noisy" rotations from Rt
+  // Now creating N "noisy" rotations from Rt
   std::vector<cv::Matx<double, 3, 3>> data;
   // The Gaussian distribution to sample the noise from 
   double sigma = 0.1; // that's roughly 5.7 degrees...

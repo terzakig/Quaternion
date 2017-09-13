@@ -1891,7 +1891,7 @@ template<typename P = float>
   
   /// Quaternion addition
   template<typename Pl, typename Pr>
-  inline Quaternion<typename Quaternion<>::QAddType<Pl, Pr>::type> operator +(const Quaternion<Pl> &ql, const Quaternion<Pr> qr) 
+  inline Quaternion<typename Quaternion<>::QAddType<Pl, Pr>::type> operator +(const Quaternion<Pl> &ql, const Quaternion<Pr> &qr) 
   {
   
     typedef typename Quaternion<>::QAddType<Pl, Pr>::type retType;

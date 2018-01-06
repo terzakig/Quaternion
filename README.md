@@ -8,7 +8,7 @@ Probably the most important feature of the class is that it implements the analy
 
 The class also provides all the necessary gear required to manipulate quaternion without the need to use any additional library (e.g., addition, multiplication, interpolation, exponentiation and logarithm, conversion to rotation matrix, ininitialization from various parameteric and non-parametric forms such as rotation matrices, axis-angle parameters, Gibbs vectors, MRPs). Thus, all input parameters and results are provided/returned in simple arrays in order to be easily ported to matrix structures of the linear algebra library of choice (The code in **Example2** makes use of OpenCV `cv::Matx` and `cv::Vec` objects for standard linear algebra operations - primarily inversions).
 
-For intuition behind the implementation, see _("Modified Rodrigues Parameters: An Efficient Parametrization of Orientation in 3D Vision and Graphics"_ by G. Terzakis, M. Lourakis and D. Ait-Boudaoud)[https://link.springer.com/article/10.1007/s10851-017-0765-x]. 
+For intuition behind the implementation, see _["Modified Rodrigues Parameters: An Efficient Parametrization of Orientation in 3D Vision and Graphics"_ by G. Terzakis, M. Lourakis and D. Ait-Boudaoud)](https://link.springer.com/article/10.1007/s10851-017-0765-x). 
 
 ## Examples
 
